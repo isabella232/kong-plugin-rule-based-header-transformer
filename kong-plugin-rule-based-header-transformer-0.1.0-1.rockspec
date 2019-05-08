@@ -6,14 +6,13 @@ source = {
   tag = "0.1.0"
 }
 description = {
-  summary = "Boilerplate for Kong API gateway plugins.",
+  summary = "Rule based header transformer for Kong",
   homepage = "https://github.com/emartech/kong-plugin-rule-based-header-transformer",
   license = "MIT"
 }
 dependencies = {
   "lua ~> 5.1",
-  "classic 0.1.0-1",
-  "kong-lib-logger >= 0.3.0-1"
+  "classic 0.1.0-1"
 }
 build = {
   type = "builtin",

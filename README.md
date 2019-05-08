@@ -4,6 +4,71 @@
  - clone the git repo
  - add luarock api key to environment variables (LUAROCKS_API_KEY)
 
+## Usage
+
+### Create plugin
+```
+POST admin/plugins {
+    service_id = service.id,
+    name = "rule-based-header-transformer",
+    config = {
+        rules = {
+            {
+                output_header = "X-Output-Header",
+                uri_matchers = { "/test-api/(.-)/" },
+                input_headers = { "X-Input-Header" },
+                input_query_parameter = "query_parameter"
+            }
+        }
+    }
+}
+```
+
+### Uri based
+#### Before
+```
+> GET /test-api/123456/ HTTP/1.1
+> Host: dev.local
+```
+
+#### After
+```
+> GET /test-api/123456/ HTTP/1.1
+> Host: dev.local
+> X-Output-Header: 123456
+```
+
+### Query parameter based
+#### Before
+```
+> GET /?query_parameter=123456 HTTP/1.1
+> Host: dev.local
+```
+
+#### After
+```
+> GET /?query_parameter=123456 HTTP/1.1
+> Host: dev.local
+> X-Output-Header: 123456
+```
+
+### Header based
+#### Before
+```
+> GET / HTTP/1.1
+> Host: dev.local
+> X-Input-Header: 123456
+```
+
+#### After
+```
+> GET / HTTP/1.1
+> Host: dev.local
+> X-Input-Header: 123456
+> X-Output-Header: 123456
+```
+
+
 ## Build local development environment
 
 `make build`
