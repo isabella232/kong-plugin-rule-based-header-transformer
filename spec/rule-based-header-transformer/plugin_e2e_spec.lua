@@ -1,7 +1,7 @@
 local helpers = require "spec.helpers"
 local kong_client = require "kong_client.spec.test_helpers"
 
-describe("RuleBasedHeaderTransformer", function()
+describe("Plugin: rule-based-header-transformer #e2e", function()
 
     local kong_sdk, send_request, send_admin_request
 
@@ -21,7 +21,7 @@ describe("RuleBasedHeaderTransformer", function()
         helpers.db:truncate()
     end)
 
-    context("Admin API", function()
+    context("Rule based header transformer", function()
         local service
 
         before_each(function()
@@ -29,146 +29,266 @@ describe("RuleBasedHeaderTransformer", function()
                 name = "test-service",
                 url = "http://mockbin:8080/request"
             })
+
+            kong_sdk.routes:create_for_service(service.id, "/")
         end)
 
-        context("Plugin configuration", function()
-            it("should respond proper error message when required config values not provided", function()
-                local _, response = pcall(function()
-                    kong_sdk.plugins:create({
-                        service_id = service.id,
-                        name = "rule-based-header-transformer",
-                        config = {}
-                    })
-                end)
-
-                assert.are.equal("rules is required", response.body["config.rules"])
-            end)
-
-            it("should respond with error when rules field is not an array", function()
-                local _, response = pcall(function()
-                    kong_sdk.plugins:create({
-                        service_id = service.id,
-                        name = "rule-based-header-transformer",
-                        config = {
-                            rules = {
-                                not_array = "not array"
+        context("input_headers is set", function()
+            before_each(function()
+                kong_sdk.plugins:create({
+                    service_id = service.id,
+                    name = "rule-based-header-transformer",
+                    config = {
+                        rules = {
+                            {
+                                output_header = "X-Output-Header",
+                                input_headers = { "X-Input-Header", "X-Second-Header" }
                             }
                         }
-                    })
-                end)
-
-                assert.are.equal("rules is not an array", response.body["config.rules"])
+                    }
+                })
             end)
 
-            it("should respond proper error message when required config values not provided", function()
-                local _, response = pcall(function()
-                    kong_sdk.plugins:create({
-                        service_id = service.id,
-                        name = "rule-based-header-transformer",
-                        config = {
-                            rules = {
-                                { input_headers = { "valami" } }
-                            }
-                        }
-                    })
-                end)
+            it("should set output_header when input header is present", function()
+                local response = send_request({
+                    method = "GET",
+                    path = "/",
+                    headers = {
+                        ["X-Input-Header"] = 112233
+                    }
+                })
 
-                assert.are.equal("required field missing", response.body.rules.output_header)
+                assert.are.equal(200, response.status)
+                assert.are.equal("112233", response.body.headers["x-output-header"])
             end)
 
-            it("should respond proper error message when input_headers and uri_matchers and input_query_parameter are missing", function()
-                local _, response = pcall(function()
-                    kong_sdk.plugins:create({
-                        service_id = service.id,
-                        name = "rule-based-header-transformer",
-                        config = {
-                            rules = {
-                                { output_header = "output_header" }
-                            }
-                        }
-                    })
-                end)
+            it("should set output_header when not the first input header from the config is present", function()
+                local response = send_request({
+                    method = "GET",
+                    path = "/",
+                    headers = {
+                        ["X-Second-Header"] = 112233
+                    }
+                })
 
-                assert.are.equal("you must set at least input_headers or uri_matchers or input_query_parameter", response.body.config)
+                assert.are.equal(200, response.status)
+                assert.are.equal("112233", response.body.headers["x-output-header"])
             end)
 
-            it("should repond 201 when input_headers is provided and uri_matchers and input_query_parameter not", function()
-                local success, response = pcall(function()
-                    kong_sdk.plugins:create({
-                        service_id = service.id,
-                        name = "rule-based-header-transformer",
-                        config = {
-                            rules = {
-                                {
-                                    output_header = "output_header",
-                                    input_headers = { "input_header" }
-                                }
-                            }
-                        }
-                    })
-                end)
+            it("should set output_header with first input header when multiple input headers are present", function()
+                local response = send_request({
+                    method = "GET",
+                    path = "/",
+                    headers = {
+                        ["X-Input-Header"] = 554433,
+                        ["X-Second-Header"] = 112233
+                    }
+                })
 
-                assert.is_true(success)
+                assert.are.equal(200, response.status)
+                assert.are.equal("554433", response.body.headers["x-output-header"])
             end)
 
-            it("should repond 201 when uri_matchers is provided and input_headers and input_query_parameter not", function()
-                local success, response = pcall(function()
-                    kong_sdk.plugins:create({
-                        service_id = service.id,
-                        name = "rule-based-header-transformer",
-                        config = {
-                            rules = {
-                                {
-                                    output_header = "output_header",
-                                    uri_matchers = { "matcher" }
-                                }
+            it("should not set output_header when no valid input headers are present", function()
+                local response = send_request({
+                    method = "GET",
+                    path = "/",
+                    headers = {
+                        ["X-Not-Input-Header"] = 666
+                    }
+                })
+
+                assert.are.equal(200, response.status)
+                assert.is_nil(response.body.headers["x-output-header"])
+            end)
+        end)
+
+        context("uri_matchers is set", function()
+            before_each(function()
+                kong_sdk.plugins:create({
+                    service_id = service.id,
+                    name = "rule-based-header-transformer",
+                    config = {
+                        rules = {
+                            {
+                                output_header = "X-Output-Header",
+                                uri_matchers = { "/valid/(.-)/", "/okay/(.-)/" }
                             }
                         }
-                    })
-                end)
-
-                assert.is_true(success)
+                    }
+                })
             end)
 
-            it("should repond 201 when input_query_parameter is provided and input_headers and uri_matchers not", function()
-                local success, response = pcall(function()
-                    kong_sdk.plugins:create({
-                        service_id = service.id,
-                        name = "rule-based-header-transformer",
-                        config = {
-                            rules = {
-                                {
-                                    output_header = "output_header",
-                                    input_query_parameter = "query_parameter"
-                                }
-                            }
-                        }
-                    })
-                end)
+            it("should set output_header when first uri matcher is present", function()
+                local response = send_request({
+                    method = "GET",
+                    path = "/valid/112233/"
+                })
 
-                assert.is_true(success)
+                assert.are.equal(200, response.status)
+                assert.are.equal("112233", response.body.headers["x-output-header"])
             end)
 
-            it("should repond proper error message when not the first record is invalid", function()
-                local _, response = pcall(function()
-                    kong_sdk.plugins:create({
-                        service_id = service.id,
-                        name = "rule-based-header-transformer",
-                        config = {
-                            rules = {
-                                {
-                                    output_header = "output_header",
-                                    input_query_parameter = "query_parameter"
-                                },
-                                {
-                                    output_header = "other_header"
-                                }
+            it("should set output_header when not the first uri matcher from the config is present", function()
+                local response = send_request({
+                    method = "GET",
+                    path = "/okay/112233/"
+                })
+
+                assert.are.equal(200, response.status)
+                assert.are.equal("112233", response.body.headers["x-output-header"])
+            end)
+
+            it("should set output_header with first uri matcher when multiple uri matchers are present", function()
+                local response = send_request({
+                    method = "GET",
+                    path = "/valid/554433/okay/112233/"
+                })
+
+                assert.are.equal(200, response.status)
+                assert.are.equal("554433", response.body.headers["x-output-header"])
+            end)
+
+            it("should not set output_header when no valid uri matchers are present", function()
+                local response = send_request({
+                    method = "GET",
+                    path = "/invalid/112233/"
+                })
+
+                assert.are.equal(200, response.status)
+                assert.is_nil(response.body.headers["x-output-header"])
+            end)
+        end)
+
+        context("input_query_parameter is set", function()
+            before_each(function()
+                kong_sdk.plugins:create({
+                    service_id = service.id,
+                    name = "rule-based-header-transformer",
+                    config = {
+                        rules = {
+                            {
+                                output_header = "X-Output-Header",
+                                input_query_parameter = "query_parameter"
                             }
                         }
-                    })
-                end)
+                    }
+                })
+            end)
 
-                assert.are.equal("you must set at least input_headers or uri_matchers or input_query_parameter", response.body.config)
+            it("should set output_header when input_query_parameter is present", function()
+                local response = send_request({
+                    method = "GET",
+                    path = "/valid/112233/?query_parameter=value"
+                })
+
+                assert.are.equal(200, response.status)
+                assert.are.equal("value", response.body.headers["x-output-header"])
+            end)
+
+            it("should not set output_header when no input_query_parameter is present", function()
+                local response = send_request({
+                    method = "GET",
+                    path = "/invalid/112233/?not_looking_for_this=value"
+                })
+
+                assert.are.equal(200, response.status)
+                assert.is_nil(response.body.headers["x-output-header"])
+            end)
+        end)
+
+        context("multiple inputs are set in one rule", function()
+            before_each(function()
+                kong_sdk.plugins:create({
+                    service_id = service.id,
+                    name = "rule-based-header-transformer",
+                    config = {
+                        rules = {
+                            {
+                                output_header = "X-Output-Header",
+                                uri_matchers = { "/valid/(.-)/" },
+                                input_headers = { "X-Input-Header" },
+                                input_query_parameter = "query_parameter"
+                            }
+                        }
+                    }
+                })
+            end)
+
+            it("should set output_header from input_headers when it is present", function()
+                local response = send_request({
+                    method = "GET",
+                    path = "/valid/111111/?query_parameter=222222",
+                    headers = {
+                        ["X-Input-Header"] = 333333
+                    }
+                })
+
+                assert.are.equal(200, response.status)
+                assert.are.equal("333333", response.body.headers["x-output-header"])
+            end)
+
+            it("should set output_header from uri_matchers when it is present without input header", function()
+                local response = send_request({
+                    method = "GET",
+                    path = "/valid/111111/?query_parameter=222222"
+                })
+
+                assert.are.equal(200, response.status)
+                assert.are.equal("111111", response.body.headers["x-output-header"])
+            end)
+        end)
+
+        context("multiple rules are set", function()
+            before_each(function()
+                kong_sdk.plugins:create({
+                    service_id = service.id,
+                    name = "rule-based-header-transformer",
+                    config = {
+                        rules = {
+                            {
+                                output_header = "X-Output-Uri",
+                                uri_matchers = { "/valid/(.-)/" }
+                            },
+                            {
+                                output_header = "X-Output-Uri",
+                                uri_matchers = { "/okay/(.-)/" }
+                            },
+                            {
+                                output_header = "X-Output-Header",
+                                input_headers = { "X-Input-Header" }
+                            },
+                            {
+                                output_header = "X-Output-Header",
+                                input_headers = { "X-Second-Header" }
+                            },
+                            {
+                                output_header = "X-Output-Query",
+                                input_query_parameter = "query_parameter"
+                            },
+                            {
+                                output_header = "X-Output-Query",
+                                input_query_parameter = "other_query_parameter"
+                            }
+                        }
+                    }
+                })
+            end)
+
+            it("should itarate through all rules and should not override output header", function()
+                local response = send_request({
+                    method = "GET",
+                    path = "/valid/expected_uri_value/okay/wrong_value/?query_parameter=expected_query_param&other_query_parameter=wrong_value",
+                    headers = {
+                        ["X-Input-Header"] = "expected_header_value",
+                        ["X-Second-Header"] = "wrong_value"
+                    }
+                })
+
+                assert.are.equal(200, response.status)
+                assert.are.equal("expected_uri_value", response.body.headers["x-output-uri"])
+                assert.are.equal("expected_header_value", response.body.headers["x-output-header"])
+                assert.are.equal("expected_query_param", response.body.headers["x-output-query"])
             end)
         end)
     end)
