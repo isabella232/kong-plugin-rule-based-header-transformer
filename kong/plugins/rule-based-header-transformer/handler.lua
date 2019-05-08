@@ -43,11 +43,11 @@ function RuleBasedHeaderTransformerHandler:access(conf)
             local output_header_value = get_output_value_from_headers(rule.input_headers)
 
             if not output_header_value then
-                output_header_value = get_output_value_from_uri(rule.uri_matchers)
+                output_header_value = kong.request.get_query()[rule.input_query_parameter]
             end
 
             if not output_header_value then
-                output_header_value = kong.request.get_query()[rule.input_query_parameter]
+                output_header_value = get_output_value_from_uri(rule.uri_matchers)
             end
 
             if output_header_value then

@@ -228,14 +228,14 @@ describe("Plugin: rule-based-header-transformer #e2e", function()
                 assert.are.equal("333333", response.body.headers["x-output-header"])
             end)
 
-            it("should set output_header from uri_matchers when it is present without input header", function()
+            it("should set output_header from query parameter when it is present without input header", function()
                 local response = send_request({
                     method = "GET",
                     path = "/valid/111111/?query_parameter=222222"
                 })
 
                 assert.are.equal(200, response.status)
-                assert.are.equal("111111", response.body.headers["x-output-header"])
+                assert.are.equal("222222", response.body.headers["x-output-header"])
             end)
         end)
 
