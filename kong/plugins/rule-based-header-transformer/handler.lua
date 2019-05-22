@@ -8,6 +8,10 @@ local function header_filter(filter)
     return kong.request.get_header(filter)
 end
 
+local function output_header_exists(output_header_name)
+    return kong.request.get_header(output_header_name)
+end
+
 local function uri_filter(matcher)
     return string.match(kong.request.get_path(), matcher)
 end
@@ -39,7 +43,7 @@ function RuleBasedHeaderTransformerHandler:access(conf)
     RuleBasedHeaderTransformerHandler.super.access(self)
 
     for _, rule in pairs(conf.rules) do
-        if not kong.request.get_header(rule.output_header) then
+        if not output_header_exists(rule.output_header) then
             local output_header_value = get_output_value_from_headers(rule.input_headers)
 
             if not output_header_value then
