@@ -6,7 +6,7 @@ describe("Plugin: rule-based-header-transformer #e2e", function()
     local kong_sdk, send_request, send_admin_request
 
     setup(function()
-        helpers.start_kong({ custom_plugins = 'rule-based-header-transformer' })
+        helpers.start_kong({ plugins = 'rule-based-header-transformer' })
 
         kong_sdk = kong_client.create_kong_client()
         send_request = kong_client.create_request_sender(helpers.proxy_client())
@@ -36,7 +36,7 @@ describe("Plugin: rule-based-header-transformer #e2e", function()
         context("input_headers is set", function()
             before_each(function()
                 kong_sdk.plugins:create({
-                    service_id = service.id,
+                    service = { id = service.id },
                     name = "rule-based-header-transformer",
                     config = {
                         rules = {
@@ -106,7 +106,7 @@ describe("Plugin: rule-based-header-transformer #e2e", function()
         context("uri_matchers is set", function()
             before_each(function()
                 kong_sdk.plugins:create({
-                    service_id = service.id,
+                    service = { id = service.id },
                     name = "rule-based-header-transformer",
                     config = {
                         rules = {
@@ -163,7 +163,7 @@ describe("Plugin: rule-based-header-transformer #e2e", function()
         context("input_query_parameter is set", function()
             before_each(function()
                 kong_sdk.plugins:create({
-                    service_id = service.id,
+                    service = { id = service.id },
                     name = "rule-based-header-transformer",
                     config = {
                         rules = {
@@ -200,7 +200,7 @@ describe("Plugin: rule-based-header-transformer #e2e", function()
         context("multiple inputs are set in one rule", function()
             before_each(function()
                 kong_sdk.plugins:create({
-                    service_id = service.id,
+                    service = { id = service.id },
                     name = "rule-based-header-transformer",
                     config = {
                         rules = {
@@ -242,7 +242,7 @@ describe("Plugin: rule-based-header-transformer #e2e", function()
         context("multiple rules are set", function()
             before_each(function()
                 kong_sdk.plugins:create({
-                    service_id = service.id,
+                    service = { id = service.id },
                     name = "rule-based-header-transformer",
                     config = {
                         rules = {

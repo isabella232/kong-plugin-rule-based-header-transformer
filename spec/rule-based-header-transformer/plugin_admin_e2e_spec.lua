@@ -6,7 +6,7 @@ describe("Plugin: rule-based-header-transformer #e2e", function()
     local kong_sdk, send_request, send_admin_request
 
     setup(function()
-        helpers.start_kong({ custom_plugins = 'rule-based-header-transformer' })
+        helpers.start_kong({ plugins = 'rule-based-header-transformer' })
 
         kong_sdk = kong_client.create_kong_client()
         send_request = kong_client.create_request_sender(helpers.proxy_client())
@@ -35,19 +35,19 @@ describe("Plugin: rule-based-header-transformer #e2e", function()
             it("should respond proper error message when required config values not provided", function()
                 local _, response = pcall(function()
                     kong_sdk.plugins:create({
-                        service_id = service.id,
+                        service = { id = service.id },
                         name = "rule-based-header-transformer",
                         config = {}
                     })
                 end)
 
-                assert.are.equal("rules is required", response.body["config.rules"])
+                assert.are.equal("required field missing", response.body.fields.config.rules)
             end)
 
             it("should respond with error when rules field is not an array", function()
                 local _, response = pcall(function()
                     kong_sdk.plugins:create({
-                        service_id = service.id,
+                        service = { id = service.id },
                         name = "rule-based-header-transformer",
                         config = {
                             rules = {
@@ -57,13 +57,27 @@ describe("Plugin: rule-based-header-transformer #e2e", function()
                     })
                 end)
 
-                assert.are.equal("rules is not an array", response.body["config.rules"])
+                assert.are.equal("expected an array", response.body.fields.config.rules)
+            end)
+
+            it("should respond with error when rules field is array, but empty", function()
+                local _, response = pcall(function()
+                    kong_sdk.plugins:create({
+                        service = { id = service.id },
+                        name = "rule-based-header-transformer",
+                        config = {
+                            rules = {}
+                        }
+                    })
+                end)
+
+                assert.are.equal("length must be at least 1", response.body.fields.config.rules)
             end)
 
             it("should respond proper error message when required config values not provided", function()
                 local _, response = pcall(function()
                     kong_sdk.plugins:create({
-                        service_id = service.id,
+                        service = { id = service.id },
                         name = "rule-based-header-transformer",
                         config = {
                             rules = {
@@ -73,13 +87,13 @@ describe("Plugin: rule-based-header-transformer #e2e", function()
                     })
                 end)
 
-                assert.are.equal("required field missing", response.body.rules.output_header)
+                assert.are.equal("required field missing", response.body.fields.config.rules[1].output_header)
             end)
 
             it("should respond proper error message when input_headers and uri_matchers and input_query_parameter are missing", function()
                 local _, response = pcall(function()
                     kong_sdk.plugins:create({
-                        service_id = service.id,
+                        service = { id = service.id },
                         name = "rule-based-header-transformer",
                         config = {
                             rules = {
@@ -89,13 +103,13 @@ describe("Plugin: rule-based-header-transformer #e2e", function()
                     })
                 end)
 
-                assert.are.equal("you must set at least input_headers or uri_matchers or input_query_parameter", response.body.config)
+                assert.are.equal("you must set at least input_headers or uri_matchers or input_query_parameter", response.body.fields["@entity"][1])
             end)
 
             it("should repond 201 when input_headers is provided and uri_matchers and input_query_parameter not", function()
                 local success, _ = pcall(function()
                     kong_sdk.plugins:create({
-                        service_id = service.id,
+                        service = { id = service.id },
                         name = "rule-based-header-transformer",
                         config = {
                             rules = {
@@ -114,7 +128,7 @@ describe("Plugin: rule-based-header-transformer #e2e", function()
             it("should repond 201 when uri_matchers is provided and input_headers and input_query_parameter not", function()
                 local success, _ = pcall(function()
                     kong_sdk.plugins:create({
-                        service_id = service.id,
+                        service = { id = service.id },
                         name = "rule-based-header-transformer",
                         config = {
                             rules = {
@@ -133,7 +147,7 @@ describe("Plugin: rule-based-header-transformer #e2e", function()
             it("should repond 201 when input_query_parameter is provided and input_headers and uri_matchers not", function()
                 local success, _ = pcall(function()
                     kong_sdk.plugins:create({
-                        service_id = service.id,
+                        service = { id = service.id },
                         name = "rule-based-header-transformer",
                         config = {
                             rules = {
@@ -152,7 +166,7 @@ describe("Plugin: rule-based-header-transformer #e2e", function()
             it("should repond proper error message when not the first record is invalid", function()
                 local _, response = pcall(function()
                     kong_sdk.plugins:create({
-                        service_id = service.id,
+                        service = { id = service.id },
                         name = "rule-based-header-transformer",
                         config = {
                             rules = {
@@ -168,7 +182,7 @@ describe("Plugin: rule-based-header-transformer #e2e", function()
                     })
                 end)
 
-                assert.are.equal("you must set at least input_headers or uri_matchers or input_query_parameter", response.body.config)
+                assert.are.equal("you must set at least input_headers or uri_matchers or input_query_parameter", response.body.fields["@entity"][1])
             end)
         end)
     end)
