@@ -23,6 +23,7 @@ complete-restart: clear-db down up    ## Clear DB and restart containers
 
 publish: ## Build and publish plugin to luarocks
 	docker-compose run --rm kong bash -c "cd /kong-plugins && chmod +x publish.sh && ./publish.sh"
+	docker-compose down
 
 test: ## Run tests
 	docker-compose run --rm kong bash -c "kong migrations up || kong migrations bootstrap && cd /kong && bin/busted /kong-plugins/spec"
